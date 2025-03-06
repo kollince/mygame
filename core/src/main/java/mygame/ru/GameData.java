@@ -5,9 +5,6 @@ import com.badlogic.gdx.math.Vector3;
 
 public class GameData {
 
-    private static Texture ball;
-    private static Texture boots ;
-
     private static float ballSpeedY = 0;  // Вертикальная скорость мяча
     private static float ballSpeedX = 0;  // Горизонтальная скорость мяча
 
@@ -19,9 +16,6 @@ public class GameData {
     private static float ballHeight;
     public static final float BALL_WIDTH = 200;
 
-    private static float defaultGravity = -0.1f;  // Гравитация
-    private static float defaultBounceStrength = 18f;  // Сила отскока
-    //Полет мяча
     private static float gravity = -0.1f;  // Гравитация
     private static float bounceStrength = 18f;  // Сила отскока
 
@@ -56,7 +50,6 @@ public class GameData {
     public static void setBallSpeedX(float ballSpeedX) {
         GameData.ballSpeedX = ballSpeedX;
     }
-
 
     public static float getBallX() {
         return ballX;
@@ -106,28 +99,12 @@ public class GameData {
         GameData.ballHeight = ballHeight;
     }
 
-    public static float getDefaultGravity() {
-        return defaultGravity;
-    }
-
-    public static float getDefaultBounceStrength() {
-        return defaultBounceStrength;
-    }
-
     public static float getGravity() {
         return gravity;
     }
 
-    public static void setGravity(float gravity) {
-        GameData.gravity = gravity;
-    }
-
     public static float getBounceStrength() {
         return bounceStrength;
-    }
-
-    public static void setBounceStrength(float bounceStrength) {
-        GameData.bounceStrength = bounceStrength;
     }
 
     public static boolean getIsGameTheEnd() {
@@ -141,15 +118,6 @@ public class GameData {
     public static boolean getIsPause() {
         return isPause;
     }
-
-    public static void setIsPause(boolean isPause) {
-        GameData.isPause = isPause;
-    }
-
-    public static void setDefaultBounceStrength(float defaultBounceStrength) {
-        GameData.defaultBounceStrength = defaultBounceStrength;
-    }
-
 
     public static boolean getIsGameStarted() {
         return isGameStarted;
