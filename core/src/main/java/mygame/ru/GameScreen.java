@@ -95,9 +95,10 @@ public class GameScreen implements Screen {
             public boolean mouseMoved(int screenX, int screenY) {
                 Vector3 coords = new Vector3(screenX, screenY, 0);
                 stage.getViewport().unproject(coords);
-
-                executeGame.setBootsX(coords.x - TextureManager.getInstance().getBoots().getWidth() / 2f);
-                executeGame.setBootsY(coords.y - TextureManager.getInstance().getBoots().getHeight() / 2f);
+                GameData.setBootsX(coords.x - GameData.getBoots().getWidth()/2f);
+                //executeGame.setBootsX(coords.x - TextureManager.getInstance().getBoots().getWidth() / 2f);
+                //executeGame.setBootsY(coords.y - TextureManager.getInstance().getBoots().getHeight() / 2f);
+                GameData.setBootsY(coords.y - TextureManager.getInstance().getBoots().getHeight() / 2f);
                 return true;
             }
         });
@@ -146,8 +147,9 @@ public class GameScreen implements Screen {
     private void handleGameEnd() {
         if (!GameData.getIsGameTheEnd()) return;
 
-        executeGame.setBallX(10000);
-        executeGame.setBootsX(-2000);
+        GameData.setBallX(10000);
+        GameData.setBootsX(-2000);
+        //executeGame.setBootsX(-2000);
 
         if (startButton.getStage() == null) {
             startButton.setPosition(
@@ -170,13 +172,13 @@ public class GameScreen implements Screen {
     private void renderGame(){
         batch.setProjectionMatrix(stage.getCamera().combined);
         batch.begin();
-        batch.draw(new TextureRegion(executeGame.getBall()),
-            executeGame.getBallX(), executeGame.getBallY(),
-            GameData.BALL_WIDTH / 2, executeGame.getBallHeight() / 2,
-            GameData.BALL_WIDTH, executeGame.getBallHeight(),
-            1, 1, executeGame.getBallRotation());
+        batch.draw(new TextureRegion(GameData.getBall()),
+            GameData.getBallX(), GameData.getBallY(),
+            GameData.BALL_WIDTH / 2, GameData.getBallHeight() / 2,
+            GameData.BALL_WIDTH, GameData.getBallHeight(),
+            1, 1, GameData.getBallRotation());
 
-        batch.draw(executeGame.getBoots(), executeGame.getBootsX(), executeGame.getBootsY());
+        batch.draw(GameData.getBoots(), GameData.getBootsX(), GameData.getBootsY());
         batch.end();
     }
     private void resetData(){
