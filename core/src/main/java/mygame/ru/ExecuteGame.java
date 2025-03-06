@@ -1,7 +1,6 @@
 package mygame.ru;
 
 import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.scenes.scene2d.Stage;
@@ -9,7 +8,7 @@ import com.badlogic.gdx.scenes.scene2d.Stage;
 public class ExecuteGame {
 
     //private Texture ball1;
-    Stage stageBackGround;
+    Stage stage;
     private Texture ball;
     private Texture boots;
 
@@ -33,7 +32,7 @@ public class ExecuteGame {
     private float lastBallAngle = 0; // Последний угол мяча
 
     private final float BALL_WIDTH = 200;
-    private final float ballRadius = BALL_WIDTH/2;  // Радиус мяча (например, 32 пикселя)
+    private final float ballRadius = GameData.BALL_WIDTH/2;  // Радиус мяча (например, 32 пикселя)
     private float ballHeight; // Автоматически рассчитанная высота
 
     private float ballRotation = 0; // Текущий угол мяча
@@ -47,49 +46,49 @@ public class ExecuteGame {
     private boolean isBallStuck = false;
 
 
-    public ExecuteGame(Stage stageBackGround) {
+    public ExecuteGame(Stage stage) {
         this.ball = TextureManager.getInstance().getBall();
         this.boots = TextureManager.getInstance().getBoots();
-        this.ballSpeedY = 0f;
-        this.ballSpeedX = 0f;
+        this.ballSpeedY = GameData.getBallSpeedY();
+        this.ballSpeedX = GameData.getBallSpeedX();
+        this.stage = stage;
         float aspectRatio = (float) ball.getHeight() / ball.getWidth();
         ballHeight = BALL_WIDTH * aspectRatio;
 
-        ballX = (stageBackGround.getViewport().getWorldWidth() - BALL_WIDTH) / 2;
-        ballY = stageBackGround.getViewport().getWorldHeight() - ballHeight - 10;
+        ballX = (stage.getViewport().getWorldWidth() - BALL_WIDTH) / 2;
+        ballY = stage.getViewport().getWorldHeight() - ballHeight - 10;
 
         coordsBootsX = new Vector3(boots.getWidth(), 0, 0);
-        bootsX = (stageBackGround.getViewport().getWorldWidth() - boots.getWidth()) / 2;
-        bootsY = (stageBackGround.getViewport().getWorldHeight() - boots.getHeight()) / 3 ;
+        bootsX = (stage.getViewport().getWorldWidth() - boots.getWidth()) / 2;
+        bootsY = (stage.getViewport().getWorldHeight() - boots.getHeight()) / 3 ;
     }
 
     public void execute(float delta){
-        ballSpeedY  += gravity;
-        if (isGameStarted) {
-            ballX = (stageBackGround.getViewport().getWorldWidth() - BALL_WIDTH) / 2;
-            ballY = stageBackGround.getViewport().getWorldHeight() - ballHeight - 10;
-            //bootsX = (stageBackGround.getViewport().getWorldWidth() - boots.getRegionWidth()) / 2;
-            //bootsY = (stageBackGround.getViewport().getWorldHeight() - boots.getRegionHeight()) / 3 ;  // Находится внизу экрана
+        ballSpeedY  += GameData.getGravity();
+        if (!GameData.getIsGameStarted()) {
+            ballX = (stage.getViewport().getWorldWidth() - BALL_WIDTH) / 2;
+            ballY = stage.getViewport().getWorldHeight() - ballHeight - 10;
             return; // Если игра не началась, не обновляем позицию мяча
         }
-        if (isGameTheEnd){
-            ballX = (stageBackGround.getViewport().getWorldWidth() - BALL_WIDTH) / 2;
-            ballY = stageBackGround.getViewport().getWorldHeight() - ballHeight - 10;
+        if (GameData.getIsGameTheEnd()){
+            ballX = (stage.getViewport().getWorldWidth() - BALL_WIDTH) / 2;
+            ballY = stage.getViewport().getWorldHeight() - ballHeight - 10;
             ballRotation = 0;
             rotationSpeed = 0;
             lastBallAngle = 0;
-            ballSpeedX = 0;
             ballSpeedY = 0;
+            ballSpeedX = 0;
+            GameData.setBallSpeedY(0);
+            GameData.setBallSpeedX(0);
             sameTrajectoryCount = 0;
         }
         // Центр мяча для корректного расчета коллизий
         float ballCenterX = ballX + BALL_WIDTH / 2;
         float ballCenterY = ballY + ballHeight / 2;
-
         // Проверка столкновения с бутсой
-        if (!isGameTheEnd) {
+        if (!GameData.getIsGameTheEnd()) {
             // Если игра на паузе, ничего не обновляем
-            if (countdown > 0) {
+            if (GameData.getIsPause() || GameData.getCountdown() > 0) {
                 return;
             }
 
@@ -97,38 +96,33 @@ public class ExecuteGame {
                 ballCenterY + ballRadius > bootsY &&
                 ballCenterX + ballRadius > bootsX &&
                 ballCenterX - ballRadius < bootsX + boots.getWidth()) {
-
                 // Вычисление положения удара и случайного отклонения угла
                 float impactPosition = (ballCenterX - bootsX) / boots.getWidth(); // От 0 (левый край) до 1 (правый край)
                 float randomOffset = MathUtils.random(-1f, 1f); // Легкая случайность угла
-
                 // Задание силы отскока и бокового импульса
 //                ballSpeedY = bounceStrength;
-                ballSpeedY = bounceStrength;
-                //GameData.setBallSpeedY(ballSpeedY);
+                ballSpeedY = GameData.getBounceStrength();
+                GameData.setBallSpeedY(ballSpeedY);
                 ballSpeedX = (impactPosition - 0.5f) * 30f + randomOffset; // Ближе к краю — сильнее боковой импульс
-                //GameData.setBallSpeedX(ballSpeedX);
-
+                GameData.setBallSpeedX(ballSpeedX);
                 // Проверка одинаковой траектории (смягчено)
                 float newAngle = Math.abs(ballSpeedY / (ballSpeedX + 0.01f));
                 boolean trajectoryChanged = Math.abs(newAngle - lastBallAngle) > 0.05f; // Было 0.1f, теперь 0.05f
-
                 if (trajectoryChanged) {
                     sameTrajectoryCount = Math.max(0, sameTrajectoryCount - 2); // Плавно уменьшаем
                 } else {
                     sameTrajectoryCount++;
                 }
                 lastBallAngle = newAngle;
-
                 // Если 6 раз одинаковая траектория — меняем угол (было 5)
                 if (sameTrajectoryCount >= 6) {
                     for (int i = 0; i < 3; i++) { // Три попытки изменить траекторию
                         float oldSpeedX = ballSpeedX;
 //                        ballSpeedY = -bounceStrength * 0.9f;
-                        ballSpeedY = -bounceStrength * 0.9f;
-                        //GameData.setBallSpeedY(ballSpeedY);
+                        ballSpeedY = -GameData.getBounceStrength() * 0.9f;
+                        GameData.setBallSpeedY(ballSpeedY);
                         ballSpeedX += MathUtils.random(-10f, 10f);
-                        //GameData.setBallSpeedX(ballSpeedX);
+                        GameData.setBallSpeedX(ballSpeedX);
 
                         float adjustedAngle = Math.abs(ballSpeedY / (ballSpeedX + 0.01f));
                         if (Math.abs(adjustedAngle - lastBallAngle) > 0.05f) { // Если угол изменился (тоже 0.05f)
@@ -136,10 +130,9 @@ public class ExecuteGame {
                             break;
                         } else {
                             ballSpeedX = oldSpeedX; // Возвращаем прежнюю скорость, если угол не поменялся
-                            //GameData.setBallSpeedX(ballSpeedX);
+                            GameData.setBallSpeedX(ballSpeedX);
                         }
                     }
-
                     // Дополнительный сдвиг мяча, если он застрял
                     if (ballX < 10) {
                         ballX += 150; // Было 200, сделано мягче
@@ -148,25 +141,20 @@ public class ExecuteGame {
                     }
                     sameTrajectoryCount = Math.max(3, sameTrajectoryCount - 3); // Плавный сброс
                 }
-
                 // Проверяем, застрял ли мяч в углу
                 boolean nearLeft = ballX <= 10;
-                boolean nearRight = ballX + BALL_WIDTH >= stageBackGround.getViewport().getWorldWidth() - 10;
-                boolean nearTop = ballY + ballHeight >= stageBackGround.getViewport().getWorldHeight() - 10;
+                boolean nearRight = ballX + BALL_WIDTH >= stage.getViewport().getWorldWidth() - 10;
+                boolean nearTop = ballY + ballHeight >= stage.getViewport().getWorldHeight() - 10;
                 boolean isStuckInCorner = (nearLeft || nearRight) && nearTop;
-
-
                 adjustRotation();
             }
         }
-
-
         // Случайное небольшое изменение траектории
         if (MathUtils.random() < RANDOM_TRAJECTORY_CHANGE_PROBABILITY) {
             ballSpeedX += MathUtils.random(-2f, 2f);
-//            GameData.setBallSpeedX(ballSpeedX);
+            GameData.setBallSpeedX(ballSpeedX);
             ballSpeedY += MathUtils.random(-1f, 1f);
-//            GameData.setBallSpeedY(ballSpeedY);
+            GameData.setBallSpeedY(ballSpeedY);
         }
 
         ballX += ballSpeedX;
@@ -178,52 +166,44 @@ public class ExecuteGame {
         if (ballY <= 0) { // Пол
             ballY = 0;
             ballSpeedY = -ballSpeedY * 0.8f;
-//            GameData.setBallSpeedY(ballSpeedY);
-//            GameData.setIsGameTheEnd(true);
-            isGameTheEnd = true;
+            GameData.setBallSpeedY(ballSpeedY);
+            GameData.setIsGameTheEnd(true);
             adjustRotation();
         }
 
         Vector3 coordsBall = new Vector3(ballX, ballY, 0);
-        stageBackGround.getCamera().unproject(coordsBall);
-        if (ballY + ballHeight > stageBackGround.getViewport().getWorldHeight()) { // Потолок
-            ballY = stageBackGround.getViewport().getWorldHeight() - ballHeight;;
+        stage.getCamera().unproject(coordsBall);
+        if (ballY + ballHeight > stage.getViewport().getWorldHeight()) { // Потолок
+            ballY = stage.getViewport().getWorldHeight() - ballHeight;;
             ballSpeedY = -ballSpeedY * 0.8f;
- //           GameData.setBallSpeedY(ballSpeedY);
-//            System.out.println(stageBackGround.getViewport().getWorldHeight());
+            GameData.setBallSpeedY(ballSpeedY);
             adjustRotation();
         }
         if (ballX < 0) { // Левая стена
             ballX = 0;
             ballSpeedX = -ballSpeedX * 0.8f;
-//            GameData.setBallSpeedX(ballSpeedX);
+            GameData.setBallSpeedX(ballSpeedX);
             adjustRotation();
         }
-        //if (ballX + ball.getWidth() > Gdx.graphics.getWidth()) {
-        if (ballX + BALL_WIDTH > stageBackGround.getViewport().getWorldWidth()) { // Правая стена
-            //  ballX = Gdx.graphics.getWidth() - ball1.getWidth();
-            ballX = stageBackGround.getViewport().getWorldWidth() - BALL_WIDTH;
+        if (ballX + BALL_WIDTH > stage.getViewport().getWorldWidth()) { // Правая стена
+            ballX = stage.getViewport().getWorldWidth() - BALL_WIDTH;
             ballSpeedX = -ballSpeedX * 0.8f;
-//            GameData.setBallSpeedX(ballSpeedX);
+            GameData.setBallSpeedX(ballSpeedX);
             adjustRotation();
         }
-        // Вращение мяча на основе клика
-
         ballRotation += rotationSpeed;
     }
+
     private void adjustRotation() {
         float angle = Math.abs((float) Math.atan2(ballSpeedY, ballSpeedX)); // Угол удара
         float minRotationSpeed = 2f;  // Минимальная скорость вращения
         float maxRotationSpeed = 15f; // Максимальная скорость вращения
-
-        // Устанавливаем направление вращения в зависимости от горизонтальной скорости
         rotationSpeed = Math.signum(ballSpeedX) * (maxRotationSpeed - (angle / (float) Math.PI * maxRotationSpeed));
-
-        // Если угол удара очень мал, задаем минимальную скорость вращения
         if (Math.abs(rotationSpeed) < minRotationSpeed) {
             rotationSpeed = Math.signum(rotationSpeed) * minRotationSpeed;
         }
     }
+
     public float getBallX() { return ballX; }
     public float getBallY() { return ballY; }
 
@@ -267,3 +247,4 @@ public class ExecuteGame {
     }
 
 }
+

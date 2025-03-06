@@ -1,15 +1,22 @@
 package mygame.ru;
 
-import com.badlogic.gdx.Game;
-import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.Screen;
+import com.badlogic.gdx.*;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.math.Vector3;
+import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
+import com.badlogic.gdx.scenes.scene2d.ui.Label;
+import com.badlogic.gdx.scenes.scene2d.ui.Table;
+import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
+import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
+import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Scaling;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 
@@ -22,6 +29,9 @@ public class GameScreen implements Screen {
 
     private Image backgroundImage;
     private Texture backgroundTexture;
+
+    private Label countdownLabel;
+    private TextButton startButton;
 
     private ExecuteGame executeGame;
 
@@ -37,6 +47,7 @@ public class GameScreen implements Screen {
         camera = new OrthographicCamera();
         viewport = new FitViewport(1280, 720, camera);
         viewport.apply();
+        stage = new Stage(viewport);
         Gdx.input.setInputProcessor(stage);
 
         backgroundTexture = TextureManager.getInstance().getBackground();
@@ -46,42 +57,133 @@ public class GameScreen implements Screen {
 
         stage.addActor(backgroundImage);
 
-        Gdx.input.setInputProcessor(stage);
+        BitmapFont font = new BitmapFont();
+        Label.LabelStyle labelStyle = new Label.LabelStyle();
+        labelStyle.font = font;
+        labelStyle.fontColor = Color.WHITE;
+
+        countdownLabel = new Label("", labelStyle);
+        countdownLabel.setFontScale(3);
+        countdownLabel.setPosition(stage.getViewport().getWorldWidth() / 2, stage.getViewport().getWorldHeight() / 2, Align.center);
+        stage.addActor(countdownLabel);
+
+        TextButton.TextButtonStyle buttonStyle = new TextButton.TextButtonStyle();
+        buttonStyle.font = font;
+        buttonStyle.fontColor = Color.WHITE;
+
+        startButton = new TextButton("Start", buttonStyle);
+        startButton.getLabel().setFontScale(2);
+        startButton.setColor(Color.GRAY);
+        startButton.setPosition(stage.getViewport().getWorldWidth() / 2 - startButton.getWidth() / 2, stage.getViewport().getWorldHeight() / 4);
+        startButton.addListener(new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, Actor actor) {
+                resetData();
+                GameData.setIsGameStarted(true);
+                startButton.remove();
+            }
+        });
+        stage.addActor(startButton);
+
+        initInput();
+    }
+    private void initInput(){
+        InputMultiplexer multiplexer = new InputMultiplexer();
+        multiplexer.addProcessor(stage);
+        multiplexer.addProcessor(new InputAdapter() {
+            @Override
+            public boolean mouseMoved(int screenX, int screenY) {
+                Vector3 coords = new Vector3(screenX, screenY, 0);
+                stage.getViewport().unproject(coords);
+
+                executeGame.setBootsX(coords.x - TextureManager.getInstance().getBoots().getWidth() / 2f);
+                executeGame.setBootsY(coords.y - TextureManager.getInstance().getBoots().getHeight() / 2f);
+                return true;
+            }
+        });
+        Gdx.input.setInputProcessor(multiplexer);
     }
 
     @Override
     public void render(float delta) {
-        // Очищаем экран
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
-
-        // Обновляем и отрисовываем объекты игры
         executeGame.execute(delta);
-
-        // Устанавливаем матрицу проекции для рендеринга
-        batch.setProjectionMatrix(stage.getCamera().combined);
-        batch.begin();
-
-        // Получаем и рисуем мяч
-        Texture ballTexture = executeGame.getBall();  // Получаем текстуру мяча
-        TextureRegion ballRegion = new TextureRegion(ballTexture);  // Оборачиваем текстуру в TextureRegion
-
-        batch.draw(ballRegion,
-            executeGame.getBallX(), executeGame.getBallY(),
-            executeGame.getBALL_WIDTH() / 2, executeGame.getBallHeight() / 2,
-            executeGame.getBALL_WIDTH(), executeGame.getBallHeight(),
-            1, 1, executeGame.getBallRotation());
-
-        // Получаем и рисуем бутсы
-        batch.draw(executeGame.getBoots(), executeGame.getBootsX(), executeGame.getBootsY());
-
-        // Закрываем отрисовку
-        batch.end();
-
-        // Обновляем и отрисовываем сцену с интерфейсом
         stage.act(delta);
+        stage.getViewport().apply();
         stage.draw();
+
+        if (handleCountdown(delta)) return; // Обратный отсчет
+
+        if (GameData.getIsGameTheEnd()) {
+            handleGameEnd();
+            return;
+        }
+
+        if (!GameData.getIsGameStarted()) {
+            GameData.setIsGameStarted(true);// Игра началась
+        }
+        //checkGameTheEnd();
+        renderGame();
     }
 
+    private boolean handleCountdown(float delta) {
+        if (GameData.getIsPause()) {
+            countdownLabel.setText("Pause");
+            renderGame();
+            return true;
+        }
+
+        if (GameData.getCountdown() > 0) {
+            GameData.setCountdown(GameData.getCountdown() - delta);
+            countdownLabel.setText(String.valueOf((int) Math.ceil(GameData.getCountdown())));
+            renderGame();
+            return true;
+        }
+
+        countdownLabel.setText("");
+        return false;
+    }
+    private void handleGameEnd() {
+        if (!GameData.getIsGameTheEnd()) return;
+
+        executeGame.setBallX(10000);
+        executeGame.setBootsX(-2000);
+
+        if (startButton.getStage() == null) {
+            startButton.setPosition(
+                (stage.getViewport().getWorldWidth() - startButton.getWidth()) / 2,
+                (stage.getViewport().getWorldHeight() - startButton.getHeight()) / 2
+            );
+            stage.addActor(startButton);
+        }
+    }
+    private void updateRoundButton(String text) {
+        countdownLabel.setText(text);
+        countdownLabel.setPosition(
+            (stage.getViewport().getWorldWidth() - countdownLabel.getWidth()) / 2,
+            (stage.getViewport().getWorldHeight() - countdownLabel.getHeight()) / 2
+        );
+        if (countdownLabel.getStage() == null) {
+            stage.addActor(countdownLabel);
+        }
+    }
+    private void renderGame(){
+        batch.setProjectionMatrix(stage.getCamera().combined);
+        batch.begin();
+        batch.draw(new TextureRegion(executeGame.getBall()),
+            executeGame.getBallX(), executeGame.getBallY(),
+            GameData.BALL_WIDTH / 2, executeGame.getBallHeight() / 2,
+            GameData.BALL_WIDTH, executeGame.getBallHeight(),
+            1, 1, executeGame.getBallRotation());
+
+        batch.draw(executeGame.getBoots(), executeGame.getBootsX(), executeGame.getBootsY());
+        batch.end();
+    }
+    private void resetData(){
+        GameData.setIsGameTheEnd(false);
+        GameData.setIsGameStarted(false);
+        GameData.setCountdown(GameData.getDefaultCountdown());
+    }
 
     @Override
     public void resize(int width, int height) {
@@ -100,7 +202,8 @@ public class GameScreen implements Screen {
 
     @Override
     public void hide() {
-
+        stage.clear();
+        resetData();
     }
 
     @Override
